@@ -1,0 +1,21 @@
+{
+  "name": "skinner",
+  "version": "0.1.0",
+  "description": "Agent orchestrator: plan (PRD) and work (ralph + skinner) loops",
+  "type": "module",
+  "main": "src/index.js",
+  "bin": {
+    "skinner": "bin/skinner.js"
+  },
+  "scripts": {
+    "start": "node bin/skinner.js",
+    "plan": "node bin/skinner.js plan",
+    "work": "node bin/skinner.js work",
+    "test": "node test/run-small-loop.js 2 mock"
+  },
+  "keywords": ["cli", "agent", "orchestrator", "prd", "ralph"],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  }
+}

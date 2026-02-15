@@ -1,0 +1,7 @@
+node_modules/
+*.log
+.env
+.DS_Store
+PRD.md
+progress.txt
+test/fixtures/test-done.txt
