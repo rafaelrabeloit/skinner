@@ -77,11 +77,16 @@ export async function runSession(prompt, options = {}) {
   } = options;
 
   // When streamJson we must pipe stdout/stderr so we capture and only show parsed messages (no raw JSON).
-  const stdio = stdioOverride ?? (streamJson ? ["inherit", "pipe", "pipe"] : ["pipe", "pipe", "pipe"]);
+  // stdin is always piped (non-interactive -p mode doesn't need terminal input).
+  const stdio = stdioOverride ?? ["pipe", "pipe", "pipe"];
 
-  const args = planMode
-    ? ["--permission-mode", "acceptEdits", "-p", ...(streamJson ? ["--output-format", "stream-json", "--verbose"] : []), prompt]
-    : ["--dangerously-skip-permissions", "-p", ...(streamJson ? ["--output-format", "stream-json", "--verbose"] : []), prompt];
+  // Non-interactive mode: always skip permissions since stdin is piped (no user to confirm).
+  const args = [
+    "--dangerously-skip-permissions",
+    "-p",
+    ...(streamJson ? ["--output-format", "stream-json", "--verbose"] : []),
+    prompt,
+  ];
 
   const cwd = _cwd ?? process.cwd();
 

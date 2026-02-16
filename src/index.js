@@ -12,9 +12,10 @@ function printHelp() {
   console.log(`
 ${b("Skinner")} — agent orchestrator
 
-  ${b("plan")}
-    Planning session: draft or refine PRD.md. If PRD.md exists, questions are
-    based on the doc; otherwise you're asked what you want done.
+  ${b("plan")} ${d('"description or answers"')}
+    Non-interactive planning. Pass a description to create PRD.md, or answers
+    to refine an existing one. Open questions appear as <!-- QUESTION: ... -->
+    comments in the PRD.
 
   ${b("work")} [${d("--loop [N]")}] [${d("--eval-interval MIN")}]
     Run ralph (worker) + skinner (supervisor). One iteration by default.
@@ -72,7 +73,8 @@ export async function main(argv) {
   process.once("SIGTERM", stop);
 
   if (command === "plan") {
-    await runPlan(controller.signal);
+    const planInput = rest.join(" ").trim();
+    await runPlan(planInput, controller.signal);
     return;
   }
 
