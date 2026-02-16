@@ -1,5 +1,5 @@
 {
-  "name": "skinner",
+  "name": "skinner-ai",
   "version": "0.1.0",
   "description": "Agent orchestrator: plan (PRD) and work (ralph + skinner) loops",
   "type": "module",
