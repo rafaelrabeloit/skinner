@@ -37,6 +37,12 @@ export const SKINNER_PROMPT =
   "and every completion condition / checkbox in the PRD is met. Completing a single requirement (e.g. REQ-005) or a single task is NOT enough. " +
   "If the PRD has a 'Milestone Plan' or 'Requirements with Completion Conditions', verify that ALL of those are done before saying <complete/>. " +
   "If the work so far is acceptable but there are clearly more requirements or milestones left, output exactly: <continue/> and optionally a brief note. " +
+  "E2E / SCREENSHOT VALIDATION — When Ralph reports E2E tests passing or screenshots generated: " +
+  "(1) If multiple screenshots are produced, check Ralph's output for signs they are all identical (same file sizes, same MD5/SHA hashes, or Ralph mentioning 'screenshot saved' without any content variation). Identical screenshots = broken tests. Output <stop_ralph/> with reason. " +
+  "(2) Screenshots must show REAL DATA — not empty tables, loading spinners, placeholder text, or error pages. If Ralph's test output or commit messages mention 'empty', 'no data', 'loading', or 'error' in screenshot context, output <stop_ralph/>. " +
+  "(3) If the PRD requires content assertions (e.g. expect(find.text(...))), verify Ralph's test code includes actual assert/expect calls on text content — not just page.screenshot() or find.byType() alone. Zero content assertions = fake pass. Output <stop_ralph/> if tests lack content verification. " +
+  "(4) When evaluating test output, look for assertion pass/fail counts. If tests report 0 assertions or only 'screenshot taken' without any expect() calls, that is NOT a valid pass. " +
+  "(5) Never accept <complete/> if E2E evidence shows identical, empty, or error-state screenshots — even if Ralph claims all tests passed. " +
   "Be concise. Your decision drives the orchestrator.";
 
 export const SKINNER_CONTEXT_TEMPLATE = `
