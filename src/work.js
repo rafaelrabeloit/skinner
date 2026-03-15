@@ -68,9 +68,11 @@ function tailLines(fullOutput, maxLines = RALPH_MESSAGES_TAIL_LINES) {
  * @param {string} opts.prdExcerpt
  * @param {string} opts.progressContent
  * @param {number} opts.evalIntervalMs - how often Skinner evaluates (default 2.5 min)
+ * @param {string} [opts.workerModel] - model for Ralph
+ * @param {string} [opts.supervisorModel] - model for Skinner
  * @returns {Promise<{ decision: string, reason?: string, lastRalphOutput: string, lastSkinnerReport: string }>}
  */
-async function runOneIteration({ cwd, signal, prdExcerpt, progressContent, evalIntervalMs }) {
+async function runOneIteration({ cwd, signal, prdExcerpt, progressContent, evalIntervalMs, workerModel, supervisorModel }) {
   const resolvePath = (p) => join(cwd, p);
 
   const ralphStream = runner.spawnSession(RALPH_PROMPT, {
@@ -78,6 +80,7 @@ async function runOneIteration({ cwd, signal, prdExcerpt, progressContent, evalI
     verbose: true,
     streamJson: true,
     env: { IS_SANDBOX: "1" },
+    model: workerModel,
   });
 
   const ralphPid = ralphStream.child.pid;
@@ -109,6 +112,7 @@ async function runOneIteration({ cwd, signal, prdExcerpt, progressContent, evalI
       streamJson: true,
       outputLabel: "Skinner",
       statusIntervalMs: 20 * 1000,
+      model: supervisorModel,
     });
     lastSkinnerReport = parser.formatMessageForDisplay(result.stdout || "");
     const { decision, reason } = parser.parseSupervisorOutput(result.stdout || "");
@@ -180,10 +184,32 @@ async function runOneIteration({ cwd, signal, prdExcerpt, progressContent, evalI
  * @param {number} [opts.evalIntervalMs] - Skinner eval interval (default 2.5 min)
  * @param {AbortSignal} [opts.signal]
  * @param {string} [opts.cwd] - working directory (default process.cwd())
+ * @param {string} [opts.workerModel] - starting model for Ralph
+ * @param {string} [opts.supervisorModel] - model for Skinner (supervisor)
+ * @param {string} [opts.escalationModel] - model to escalate Ralph to on repeated failures
+ * @param {number} [opts.escalationThreshold] - consecutive stop_ralph before escalating (default 2)
  */
-export async function runWork({ loopCount, evalIntervalMs = 2.5 * 60 * 1000, signal, cwd = process.cwd() }) {
+export async function runWork({
+  loopCount,
+  evalIntervalMs = 2.5 * 60 * 1000,
+  signal,
+  cwd = process.cwd(),
+  workerModel,
+  supervisorModel,
+  escalationModel,
+  escalationThreshold = 2,
+}) {
   const maxIterations = loopCount ?? 999_999;
   const resolvePath = (p) => join(cwd, p);
+  let currentWorkerModel = workerModel;
+  let consecutiveStops = 0;
+
+  if (currentWorkerModel) {
+    process.stderr.write(ui.dim(`Worker model: ${currentWorkerModel}`) + "\n");
+  }
+  if (supervisorModel) {
+    process.stderr.write(ui.dim(`Supervisor model: ${supervisorModel}`) + "\n");
+  }
 
   for (let iteration = 1; iteration <= maxIterations; iteration++) {
     if (signal?.aborted) {
@@ -206,6 +232,8 @@ export async function runWork({ loopCount, evalIntervalMs = 2.5 * 60 * 1000, sig
       prdExcerpt,
       progressContent,
       evalIntervalMs,
+      workerModel: currentWorkerModel,
+      supervisorModel,
     });
 
     if (signal?.aborted) {
@@ -217,12 +245,22 @@ export async function runWork({ loopCount, evalIntervalMs = 2.5 * 60 * 1000, sig
     process.stderr.write(ui.summaryBlock(iterLabel, decision, reason, ralphExcerpt, lastSkinnerReport));
 
     if (decision === "stop_ralph") {
-      process.stderr.write(ui.yellow("Skinner requested to stop Ralph.") + " " + ui.dim("Exiting.") + "\n");
-      return;
-    }
-    if (decision === "complete") {
+      consecutiveStops++;
+      if (escalationModel && currentWorkerModel !== escalationModel && consecutiveStops >= escalationThreshold) {
+        currentWorkerModel = escalationModel;
+        consecutiveStops = 0;
+        process.stderr.write(ui.yellow(`Escalating Ralph to ${escalationModel} after ${escalationThreshold} consecutive stops.`) + "\n");
+        // Don't exit — continue the loop with the stronger model
+      } else {
+        process.stderr.write(ui.yellow("Skinner requested to stop Ralph.") + " " + ui.dim("Exiting.") + "\n");
+        return;
+      }
+    } else if (decision === "complete") {
       process.stderr.write(ui.green("Skinner reported PRD complete.") + " " + ui.dim("Exiting.") + "\n");
       return;
+    } else {
+      // continue — reset consecutive stops on success
+      consecutiveStops = 0;
     }
   }
 

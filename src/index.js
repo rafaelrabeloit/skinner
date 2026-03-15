@@ -22,6 +22,12 @@ ${b("Skinner")} — agent orchestrator
     ${d("--loop N")}     at most N iterations; ${d("--loop")} with no value = until complete
     ${d("--eval-interval")}  minutes between Skinner evals (default 2.5)
 
+  ${d("Model selection:")}
+    ${d("--worker-model MODEL")}      Ralph's starting model (default: CLI default)
+    ${d("--supervisor-model MODEL")}  Skinner's model (default: CLI default)
+    ${d("--escalation-model MODEL")}  model to escalate Ralph to on repeated failures
+    ${d("--escalation-threshold N")}  consecutive stop_ralph before escalating (default 2)
+
 ${d("Requirements:")} Claude CLI on PATH. For work: PRD.md in current directory.
 `);
 }
@@ -40,6 +46,27 @@ function parseLoopArg(argv) {
   const n = parseInt(raw, 10);
   if (!Number.isFinite(n) || n <= 0) return { loopCount: null, error: "--loop must be a positive integer (e.g. --loop 5)." };
   return { loopCount: n };
+}
+
+/**
+ * Parse a named string arg from argv: --flag value
+ * @returns {string|undefined}
+ */
+function parseStringArg(argv, flag) {
+  const i = argv.indexOf(flag);
+  if (i === -1 || !argv[i + 1] || argv[i + 1].startsWith("-")) return undefined;
+  return argv[i + 1];
+}
+
+/**
+ * Parse a named integer arg from argv: --flag N
+ * @returns {number|undefined}
+ */
+function parseIntArg(argv, flag) {
+  const raw = parseStringArg(argv, flag);
+  if (raw == null) return undefined;
+  const n = parseInt(raw, 10);
+  return Number.isFinite(n) && n > 0 ? n : undefined;
 }
 
 /**
@@ -94,6 +121,10 @@ export async function main(argv) {
       evalIntervalMs,
       signal: controller.signal,
       cwd: process.cwd(),
+      workerModel: parseStringArg(rest, "--worker-model") ?? process.env.SKINNER_WORKER_MODEL,
+      supervisorModel: parseStringArg(rest, "--supervisor-model") ?? process.env.SKINNER_SUPERVISOR_MODEL,
+      escalationModel: parseStringArg(rest, "--escalation-model") ?? process.env.SKINNER_ESCALATION_MODEL,
+      escalationThreshold: parseIntArg(rest, "--escalation-threshold") ?? (process.env.SKINNER_ESCALATION_THRESHOLD ? parseInt(process.env.SKINNER_ESCALATION_THRESHOLD) : 2),
     });
     return;
   }

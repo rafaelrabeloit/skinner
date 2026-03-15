@@ -83,6 +83,7 @@ export async function runSession(prompt, options = {}) {
   // Non-interactive mode: always skip permissions since stdin is piped (no user to confirm).
   const args = [
     "--dangerously-skip-permissions",
+    ...(options.model ? ["--model", options.model] : []),
     "-p",
     ...(streamJson ? ["--output-format", "stream-json", "--verbose"] : []),
     prompt,
@@ -192,6 +193,7 @@ export function spawnSession(prompt, options = {}) {
 
   const args = [
     "--dangerously-skip-permissions",
+    ...(options.model ? ["--model", options.model] : []),
     "-p",
     ...(streamJson ? ["--output-format", "stream-json", "--verbose"] : []),
     prompt,
